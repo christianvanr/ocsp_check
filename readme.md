@@ -34,20 +34,32 @@ Maakt met `openssl s_client` verbinding met `domein:poort` en haalt de volledige
 
 Als deze twee bestanden niet bestaan, kon de verbinding niet correct worden opgezet en stopt het script met een foutmelding.
 
-Vervolgens worden `subject` en `issuer` van beide certificaten getoond, en wordt het **serienummer** van het servercertificaat uitgelezen (nodig om later in de CRL te zoeken).
+Vervolgens worden `subject` en `issuer` van beide certificaten getoond.
 
-### 3. OCSP-URL zoeken en controleren
+### 3. Subject Alternative Names (SAN)
+Met `openssl x509 -ext subjectAltName` worden de **Subject Alternative Names** van het servercertificaat getoond — de (extra) domeinnamen/IP-adressen waarvoor het certificaat geldig is. Heeft het certificaat geen SAN-extensie, dan meldt het script dat expliciet.
+
+### 4. Geldigheid van het servercertificaat
+Met `openssl x509 -dates` worden `notBefore` en `notAfter` getoond: de periode waarin het certificaat geldig is.
+
+Daarnaast controleert het script met `openssl x509 -checkend 0` of het certificaat **op dit moment** nog geldig is (dus niet verlopen), en toont het resultaat als "nog geldig" of "VERLOPEN".
+
+> Let op: dit is alleen een **datumcontrole**. Het zegt niets over eventuele revocatie — dat wordt pas in de OCSP/CRL-stappen hierna gecontroleerd.
+
+Tot slot wordt het **serienummer** van het servercertificaat uitgelezen (nodig om later in de CRL te zoeken).
+
+### 5. OCSP-URL zoeken en controleren
 Het script haalt de OCSP-URL uit het servercertificaat (`openssl x509 -ocsp_uri`).
 
 - **Indien gevonden:** wordt direct een OCSP-request uitgevoerd met `openssl ocsp`, met `cert2.pem` als issuer-certificaat en `cert1.pem` als te controleren certificaat. Het resultaat (status: `good`, `revoked` of `unknown`) wordt getoond en het script stopt hier (`exit 0`).
 - **Indien niet gevonden:** valt het script terug op de CRL-methode (stap 4).
 
-### 4. CRL Distribution Point zoeken
+### 6. CRL Distribution Point zoeken
 Als er geen OCSP-URL is, doorzoekt het script de volledige tekstuele uitvoer van het certificaat op de sectie **"CRL Distribution Points"** en extraheert de eerste `URI:`-waarde daaruit.
 
 Wordt er geen CRL-URL gevonden, dan kan de revocatiestatus niet worden gecontroleerd en stopt het script met een foutmelding.
 
-### 5. CRL downloaden en controleren
+### 7. CRL downloaden en controleren
 - De CRL wordt gedownload met `curl` naar `harica.crl`.
 - Het script probeert deze eerst als **DER**-formaat te parsen; lukt dat niet, dan wordt teruggevallen op **PEM**-formaat. De leesbare tekstweergave wordt opgeslagen in `crl_text.txt`.
 - Tot slot wordt met `grep` gezocht of het serienummer van het servercertificaat in de CRL voorkomt:

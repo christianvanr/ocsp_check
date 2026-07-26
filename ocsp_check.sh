@@ -24,7 +24,15 @@ echo ""
 echo "--- cert2.pem (issuer/intermediate) ---"
 openssl x509 -in cert2.pem -noout -subject -issuer
 echo ""
-echo "=== 1b. Geldigheid servercertificaat ==="
+echo "=== 1b. Subject Alternative Names (SAN) ==="
+SAN=$(openssl x509 -in cert1.pem -noout -ext subjectAltName 2>/dev/null | tail -n +2 | sed 's/^[[:space:]]*//')
+if [[ -n "$SAN" ]]; then
+  echo "$SAN"
+else
+  echo "Geen SAN-extensie gevonden in het certificaat."
+fi
+echo ""
+echo "=== 1c. Geldigheid servercertificaat ==="
 openssl x509 -in cert1.pem -noout -dates
 if openssl x509 -in cert1.pem -noout -checkend 0 > /dev/null 2>&1; then
   echo "Status: certificaat is (op basis van de datum) nog geldig."
